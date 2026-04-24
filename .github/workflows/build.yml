@@ -1,0 +1,61 @@
+name: Build IPTV Ultra
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install pyinstaller PyQt5 requests
+
+    - name: Download and install VLC
+      run: |
+        $vlcUrl = "https://get.videolan.org/vlc/3.0.21/win64/vlc-3.0.21-win64.exe"
+        Invoke-WebRequest -Uri $vlcUrl -OutFile vlc_installer.exe
+        Start-Process -FilePath vlc_installer.exe -ArgumentList "/S" -Wait
+        echo "VLC_PATH=C:\Program Files\VideoLAN\VLC" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller `
+          --noconfirm `
+          --onedir `
+          --windowed `
+          --name "IPTV Player Pro" `
+          --add-data "C:\Program Files\VideoLAN\VLC\libvlc.dll;." `
+          --add-data "C:\Program Files\VideoLAN\VLC\libvlccore.dll;." `
+          --add-data "C:\Program Files\VideoLAN\VLC\plugins;plugins" `
+          iptv_player.py
+      shell: pwsh
+
+    - name: Install Inno Setup
+      run: |
+        $url = "https://jrsoftware.org/download.php/is.exe"
+        Invoke-WebRequest -Uri $url -OutFile innosetup.exe
+        Start-Process -FilePath innosetup.exe -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
+      shell: pwsh
+
+    - name: Compile installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+      shell: pwsh
+
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: IPTV_Ultra_Setup
+        path: Output\IPTV_Ultra_Setup.exe
