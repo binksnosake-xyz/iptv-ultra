@@ -17,19 +17,15 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        pip install pyinstaller PyQt5 requests
+    - name: Install Python dependencies
+      run: pip install pyinstaller PyQt5 requests python-vlc
 
-    - name: Download and install VLC
-      run: |
-        $vlcUrl = "https://get.videolan.org/vlc/3.0.21/win64/vlc-3.0.21-win64.exe"
-        Invoke-WebRequest -Uri $vlcUrl -OutFile vlc_installer.exe
-        Start-Process -FilePath vlc_installer.exe -ArgumentList "/S" -Wait
-        echo "VLC_PATH=C:\Program Files\VideoLAN\VLC" >> $env:GITHUB_ENV
+    - name: Install VLC via Chocolatey
       shell: pwsh
+      run: choco install vlc -y --no-progress
 
     - name: Build with PyInstaller
+      shell: pwsh
       run: |
         pyinstaller `
           --noconfirm `
@@ -40,19 +36,15 @@ jobs:
           --add-data "C:\Program Files\VideoLAN\VLC\libvlccore.dll;." `
           --add-data "C:\Program Files\VideoLAN\VLC\plugins;plugins" `
           iptv_player.py
-      shell: pwsh
 
     - name: Install Inno Setup
-      run: |
-        $url = "https://jrsoftware.org/download.php/is.exe"
-        Invoke-WebRequest -Uri $url -OutFile innosetup.exe
-        Start-Process -FilePath innosetup.exe -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
       shell: pwsh
+      run: choco install innosetup -y --no-progress
 
     - name: Compile installer
+      shell: pwsh
       run: |
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
-      shell: pwsh
 
     - name: Upload installer
       uses: actions/upload-artifact@v4
